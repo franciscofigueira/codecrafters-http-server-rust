@@ -1,7 +1,9 @@
+//use itertools::Itertools;
+
 #[derive(Debug)]
 pub struct HTTPRequest {
     pub start_line: StartLine,
-    pub headers: Option<Vec<String>>,
+    pub headers: Option<Vec<Header>>,
     pub body: Option<Vec<String>>,
 }
 
@@ -17,26 +19,47 @@ pub struct StartLine {
     pub version: String,
 }
 
+#[derive(Debug)]
+pub struct Header {
+    pub key: String,
+    pub value: String,
+}
+
 impl HTTPRequest {
     pub fn try_from(buffer: &[u8]) -> Self {
         let request = std::str::from_utf8(&buffer).unwrap();
 
-        let (start_line_string, _rest) = request.split_once("\r\n").unwrap();
-        let res: Vec<_> = start_line_string.split(" ").collect();
-        //println!("start : {start_line_string} , rest: {_rest} REST FINISHED");
-        let method = match res[0] {
+        let (start_line_string, remainder) = request.split_once("\r\n").unwrap();
+        let (headers, _body) = remainder.split_once("\r\n\r\n").unwrap();
+        let start_line_vec: Vec<_> = start_line_string.split(" ").collect();
+
+        let headers: Vec<Header> = headers
+            .split("\r\n")
+            .map(|header| match header.split_once(": ") {
+                Some((key, value)) => Header {
+                    key: key.to_string(),
+                    value: value.to_string(),
+                },
+                None => Header {
+                    key: "".to_string(),
+                    value: "".to_string(),
+                },
+            })
+            .collect();
+
+        let method = match start_line_vec[0] {
             "GET" => HTTPMethod::GET,
             _ => HTTPMethod::GET,
         };
         let start = StartLine {
-            method: method,
-            path: res[1].to_string(),
-            version: res[2].to_string(),
+            method,
+            path: start_line_vec[1].to_string(),
+            version: start_line_vec[2].to_string(),
         };
 
         HTTPRequest {
             start_line: start,
-            headers: None,
+            headers: Some(headers),
             body: None,
         }
     }

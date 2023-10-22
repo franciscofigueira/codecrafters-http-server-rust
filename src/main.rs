@@ -26,7 +26,7 @@ fn create_response(mut stream: TcpStream) {
     stream.read(&mut buf).unwrap();
     let request: HTTPRequest = HTTPRequest::try_from(&buf);
 
-    println!("{:?}", request);
+    println!("request parsed: {:?}", request);
 
     if request.start_line.path == "/" {
         stream
@@ -40,9 +40,24 @@ fn create_response(mut stream: TcpStream) {
             "HTTP/1.1 200 OK\r\nContent-Type:text/plain\r\nContent-Length:{}\r\n\r\n{}",
             length, r
         );
-        println!("{:?}", response);
+        //println!("{:?}", response);
         stream.write(response.as_bytes()).expect("write to stream");
         stream.flush().expect("flush stream");
+    } else if request.start_line.path.contains("/user-agent") {
+        if let Some(headers) = request.headers.as_ref() {
+            for header in headers {
+                if header.key == "User-Agent" {
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type:text/plain\r\nContent-Length:{}\r\n\r\n{}",
+                        header.value.len(),
+                        header.value
+                    );
+                    stream.write(response.as_bytes()).expect("write to stream");
+                    stream.flush().expect("flush stream");
+                    break;
+                }
+            }
+        }
     } else {
         stream
             .write("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
