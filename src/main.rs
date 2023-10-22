@@ -12,7 +12,10 @@ fn main() {
         match stream {
             Ok(mut _stream) => {
                 println!("accepted new connection");
-                create_response(_stream);
+
+                std::thread::spawn(|| {
+                    handle_connection(_stream);
+                });
             }
             Err(e) => {
                 println!("error: {}", e);
@@ -21,7 +24,7 @@ fn main() {
     }
 }
 
-fn create_response(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream) {
     let mut buf = [0; 128];
     stream.read(&mut buf).unwrap();
     let request: HTTPRequest = HTTPRequest::try_from(&buf);
