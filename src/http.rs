@@ -1,5 +1,3 @@
-//use itertools::Itertools;
-
 #[derive(Debug)]
 pub struct HTTPRequest {
     pub start_line: StartLine,
@@ -39,26 +37,23 @@ impl HTTPRequest {
             "POST" => HTTPMethod::POST,
             _ => HTTPMethod::GET,
         };
-        let start = StartLine {
+        let start_line = StartLine {
             method,
             path: start_line_vec[1].to_string(),
             version: start_line_vec[2].to_string(),
         };
 
-        let opt = remainder.split_once("\r\n\r\n");
-        let (headers, body) = match opt {
+        let (headers, body) = match remainder.split_once("\r\n\r\n") {
             Some((headers, body)) => {
-                let headers = headers
+                let headers: Vec<_> = headers
                     .split("\r\n")
-                    .map(|header| match header.split_once(": ") {
-                        Some((key, value)) => Header {
+                    .filter(|header| header.split_once(": ").is_some())
+                    .map(|header| {
+                        let (key, value) = header.split_once(": ").unwrap();
+                        Header {
                             key: key.to_string(),
                             value: value.to_string(),
-                        },
-                        None => Header {
-                            key: "".to_string(),
-                            value: "".to_string(),
-                        },
+                        }
                     })
                     .collect();
                 let mut body_re = None;
@@ -69,15 +64,19 @@ impl HTTPRequest {
                         body_re = Some(body.to_string())
                     }
                 }
-                (Some(headers), body_re)
+                if headers.len() == 0 {
+                    (None, body_re)
+                } else {
+                    (Some(headers), body_re)
+                }
             }
             None => (None, None),
         };
 
         HTTPRequest {
-            start_line: start,
-            headers: headers,
-            body: body,
+            start_line,
+            headers,
+            body,
         }
     }
 }
