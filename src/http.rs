@@ -10,6 +10,7 @@ pub struct HTTPRequest {
 #[derive(Debug)]
 pub enum HTTPMethod {
     GET,
+    POST,
 }
 
 #[derive(Debug)]
@@ -30,25 +31,12 @@ impl HTTPRequest {
         let request = std::str::from_utf8(&buffer).unwrap();
 
         let (start_line_string, remainder) = request.split_once("\r\n").unwrap();
-        let (headers, _body) = remainder.split_once("\r\n\r\n").unwrap();
-        let start_line_vec: Vec<_> = start_line_string.split(" ").collect();
 
-        let headers: Vec<Header> = headers
-            .split("\r\n")
-            .map(|header| match header.split_once(": ") {
-                Some((key, value)) => Header {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                },
-                None => Header {
-                    key: "".to_string(),
-                    value: "".to_string(),
-                },
-            })
-            .collect();
+        let start_line_vec: Vec<_> = start_line_string.split(" ").collect();
 
         let method = match start_line_vec[0] {
             "GET" => HTTPMethod::GET,
+            "POST" => HTTPMethod::POST,
             _ => HTTPMethod::GET,
         };
         let start = StartLine {
@@ -57,9 +45,30 @@ impl HTTPRequest {
             version: start_line_vec[2].to_string(),
         };
 
+        let opt = remainder.split_once("\r\n\r\n");
+        let headers = match opt {
+            Some((headers, _body)) => {
+                let headers = headers
+                    .split("\r\n")
+                    .map(|header| match header.split_once(": ") {
+                        Some((key, value)) => Header {
+                            key: key.to_string(),
+                            value: value.to_string(),
+                        },
+                        None => Header {
+                            key: "".to_string(),
+                            value: "".to_string(),
+                        },
+                    })
+                    .collect();
+                Some(headers)
+            }
+            None => None,
+        };
+
         HTTPRequest {
             start_line: start,
-            headers: Some(headers),
+            headers: headers,
             body: None,
         }
     }
