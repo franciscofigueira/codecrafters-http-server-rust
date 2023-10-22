@@ -4,10 +4,10 @@
 pub struct HTTPRequest {
     pub start_line: StartLine,
     pub headers: Option<Vec<Header>>,
-    pub body: Option<Vec<String>>,
+    pub body: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HTTPMethod {
     GET,
     POST,
@@ -31,7 +31,7 @@ impl HTTPRequest {
         let request = std::str::from_utf8(&buffer).unwrap();
 
         let (start_line_string, remainder) = request.split_once("\r\n").unwrap();
-
+        println!("remaidner: {remainder}");
         let start_line_vec: Vec<_> = start_line_string.split(" ").collect();
 
         let method = match start_line_vec[0] {
@@ -46,8 +46,8 @@ impl HTTPRequest {
         };
 
         let opt = remainder.split_once("\r\n\r\n");
-        let headers = match opt {
-            Some((headers, _body)) => {
+        let (headers, body) = match opt {
+            Some((headers, body)) => {
                 let headers = headers
                     .split("\r\n")
                     .map(|header| match header.split_once(": ") {
@@ -61,15 +61,23 @@ impl HTTPRequest {
                         },
                     })
                     .collect();
-                Some(headers)
+                let mut body_re = None;
+                if let Some((body, _)) = body.split_once("\0") {
+                    if body.is_empty() {
+                        body_re = None;
+                    } else {
+                        body_re = Some(body.to_string())
+                    }
+                }
+                (Some(headers), body_re)
             }
-            None => None,
+            None => (None, None),
         };
 
         HTTPRequest {
             start_line: start,
             headers: headers,
-            body: None,
+            body: body,
         }
     }
 }

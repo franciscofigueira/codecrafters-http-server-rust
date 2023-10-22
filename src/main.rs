@@ -1,5 +1,5 @@
 use anyhow::Result;
-use http_server_starter_rust::http::HTTPRequest;
+use http_server_starter_rust::http::{HTTPMethod, HTTPRequest};
 use std::env;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -27,7 +27,16 @@ async fn handle_connection(mut stream: TcpStream) -> Result<()> {
     println!("request parsed: {:?}", request);
     let mut reponse_string = String::new();
 
-    let response = if request.start_line.path == "/" {
+    let response = if request.start_line.method == HTTPMethod::POST {
+        let args: Vec<_> = env::args().collect();
+        let directory = &args[2];
+        let (_, file_name) = request.start_line.path.split_once("/files/").unwrap();
+        let file_path = directory.to_owned() + file_name;
+
+        tokio::fs::write(file_path, request.body.unwrap()).await?;
+
+        "HTTP/1.1 201 OK\r\n\r\n".as_bytes()
+    } else if request.start_line.path == "/" {
         "HTTP/1.1 200 OK\r\n\r\n".as_bytes()
     } else if request.start_line.path.contains("/echo") {
         let (_, r) = request.start_line.path.split_once("/echo/").unwrap();
